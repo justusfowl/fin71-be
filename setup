@@ -1,0 +1,58 @@
+sudo apt-get update
+
+// install node js 
+
+curl -sL https://deb.nodesource.com/setup_9.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+
+// install maria db
+
+sudo apt-get install mariadb-server mariadb-client
+sudo mysql_secure_installation
+
+--> adapt credentialls in config.js/.env
+
+
+// set up node modules
+
+npm install
+
+// zertifikat installation : 
+https://certbot.eff.org/lets-encrypt/ubuntuxenial-other 
+
+sudo apt-get update
+$ sudo apt-get install software-properties-common
+$ sudo add-apt-repository ppa:certbot/certbot
+$ sudo apt-get update
+$ sudo apt-get install certbot 
+
+
+// setup order
+
+mkdir public
+mkdir public/a
+mkdir public/img
+mkdir public/t
+mkdir public/v
+mkdir public/o
+mkdir feedback
+
+// upload ffmpeg to server 
+sudo apt-get install ffmpeg 
+
+(see ffmeg requirements)
+
+// enable node to bind to ports < 1024 without sudo
+// ## IMPORTANT: WHEN UPDATING NODE / NPM RERUN THE COMMAND ## 
+sudo setcap 'cap_net_bind_service=+ep' /usr/local/bin/node
+
+sudo vim /etc/systemd/journald.conf # set Storage=persistent
+
+
+// INSTALL COMFASH-BE 
+//install deps
+npm install
+
+// install and run service
+sudo bash install.sh <SERVICE_USER> <GROUP_OF_SERVICE_USER>
