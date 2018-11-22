@@ -1,9 +1,10 @@
 var Joi = require('joi');
 const request = require("request")
 
+var path = require('path');
 
 // require and configure dotenv, will load vars in .env in PROCESS.ENV
-require('dotenv').config();
+require('dotenv').config({path: path.join(__dirname, "../../.env")});
 
 var logger = require('../../logger');
 

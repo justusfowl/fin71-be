@@ -1,26 +1,15 @@
-var path = require('path')
-var fs = require('fs');
+var fs          = require('fs');
+const cors      = require('cors');
+var express     = require('express');
+var app         = express();
+var bodyParser  = require('body-parser');
 
-const config = require('./app/config/config');
-
-const cors = require('cors');
-
-var express    = require('express');
-var app        = express();
-var bodyParser = require('body-parser');
-
-var morgan = require('morgan');
-
+var config      = require('./app/config/config');
 var routes      = require('./app/v01/routes/index.route');
 
-var http = require('http');
-var https = require('https'); 
+var http        = require('http');
+var https       = require('https'); 
 
-var options = {
-	key: fs.readFileSync(config.https.key),
-	cert: fs.readFileSync(config.https.crt),
-	ca: fs.readFileSync(config.https.ca)
-  };
 
 config.baseDir = __dirname;
 config.publicDir = __dirname + "/public";
@@ -30,6 +19,12 @@ global.config = config;
 var server; 
 
 if (config.env == "development"){
+
+  var options = {
+    key: fs.readFileSync(config.https.key),
+    cert: fs.readFileSync(config.https.crt),
+    ca: fs.readFileSync(config.https.ca)
+    };
 
   server = https.createServer(options, app);
 
