@@ -80,7 +80,7 @@ class Transaction{
 
 function saveTransaction(req, res){
 
-    let userId = 1; // let userId = req.auth.userId; 
+    let userId  = req.auth.userId; 
 
     let projectId = req.params.projectId;
 
@@ -232,7 +232,7 @@ async function removeTransaction (transactionId, transactionCreatorUserId) {
 function deleteTransaction(req, res){
 
     (async () => {
-        let userId = 1;  // let userId = req.auth.userId; 
+        let userId = req.auth.userId; 
         let transactionId = req.params.transactionId; 
             
         await removeTransaction(transactionId, userId).then(response => {
@@ -251,7 +251,7 @@ function getProjectTransactions(req, res){
 
         let projectId = req.params.projectId;
 
-        let userId = 1; // let userId = req.auth.userId; 
+        let userId = req.auth.userId; 
 
         var qryOption = { raw: true, replacements: [userId], type: models.sequelize.QueryTypes.SELECT}; 
         

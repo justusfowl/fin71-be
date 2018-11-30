@@ -39,7 +39,7 @@ function saveProject(req, res){
 
     try{
 
-        let userId = 1; // let userId = req.auth.userId; 
+        let userId = req.auth.userId; 
 
         var project = new Project(req.body);
 
@@ -178,7 +178,7 @@ function getProjects(req, res){
 
     try{
 
-        let userId = 1; // let userId = req.auth.userId; 
+        let userId  = req.auth.userId; 
 
         let getAgg = req.query.aggregates;
 
@@ -293,7 +293,7 @@ function getProjectsOld(req, res){
 
     try{
 
-        let userId = 1; // let userId = req.auth.userId; 
+        let userId = req.auth.userId; 
 
         models.tblprojects.findAll({
             where: {
@@ -321,7 +321,7 @@ function getProjectsOld(req, res){
 
 function deleteProject(req, res){
 
-    let userId = 1; // let userId = req.auth.userId; 
+    let userId  = req.auth.userId; 
     let projectId = req.params.projectId; 
 
     deleteProjectAction(projectId, userId)

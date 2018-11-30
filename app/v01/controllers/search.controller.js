@@ -6,6 +6,7 @@ function searchUsers(req, res){
     try{
 
         let searchStr = req.query.userSearch; 
+        let requestUserId = req.auth.userId; 
 
         if (searchStr.length < 3){
             return res.status(500).send({ message: 'Not enough characters provided, at least 3.' });

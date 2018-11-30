@@ -19,7 +19,7 @@ function saveType(req, res){
 
     try{
 
-        let userId = 1; // let userId = req.auth.userId; 
+        let userId = req.auth.userId; 
 
         let type = new Type(req.body);
         type.setUserId = userId;
@@ -42,7 +42,7 @@ function getTypes(req, res){
 
     try{
 
-        let userId = 1; // let userId = req.auth.userId; 
+        let userId = req.auth.userId; 
 
         models.tbltypes.findAll({
             where: {
@@ -70,7 +70,7 @@ function getTypes(req, res){
 
 function deleteType(req, res){
 
-    let userId = 1; // let userId = req.auth.userId; 
+    let userId  = req.auth.userId; 
 
     models.tbltypes.destroy({
         where: {

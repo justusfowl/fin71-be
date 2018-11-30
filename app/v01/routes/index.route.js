@@ -17,10 +17,10 @@ router.use('/hb', function (req, res){
 });
 
 router.use('/auth', authRoutes );
-router.use('/projects', projectRoutes ); 
-router.use('/transactions', transactionRoutes );
-router.use('/types', typeRoutes)
-router.use('/users', userRoutes)
-router.use('/convert', conversionRoutes)
+router.use('/projects', [VerifyToken.verifyToken, VerifyToken.successAuth], projectRoutes ); 
+router.use('/transactions', [VerifyToken.verifyToken, VerifyToken.successAuth], transactionRoutes );
+router.use('/types', [VerifyToken.verifyToken, VerifyToken.successAuth], typeRoutes)
+router.use('/users', [VerifyToken.verifyToken, VerifyToken.successAuth], userRoutes)
+router.use('/convert', [VerifyToken.verifyToken, VerifyToken.successAuth], conversionRoutes)
 
-module.exports = router; 
+module.exports = router;

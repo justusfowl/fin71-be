@@ -10,7 +10,7 @@ var verifyToken = jwt({
       jwksRequestsPerMinute: 5,
       jwksUri: config.auth.jwksUri
   }),
-  aud: config.auth.auth0_audience, //'https://comfash.local:9999/api/v01',
+  aud: config.auth.auth0_audience,
   iss: config.auth.iss,
   algorithms: ['RS256']
 });
@@ -20,7 +20,7 @@ var successAuth = function(req, res, next) {
 
 
   req["auth"] = {
-    userId: req.user["https://app.comfash.com/cf_id"]
+    userId: req.user["https://app.fin71.de/fin71_id"]
   }
 
   next();

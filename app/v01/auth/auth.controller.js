@@ -4,7 +4,7 @@ var bcrypt = require('bcryptjs');
 const config = require('../../config/config');
 
 const uuidv1 = require('uuid/v1');
-                                                                                                                                                                                         
+const models = require('../models');                                                                                                                                                                 
 const https = require('https');
 
 var crypto = require('crypto');
@@ -22,7 +22,7 @@ function registerUser ( req, res ){
         models.tblusers.build({
             userId: newId,
             userName : user.nickname || user.email.substring(0,user.email.indexOf("@")), 
-            userAvatarPath : user.picture_large,
+            userAvatarPath : user.picture_large || "https://cdn1.iconfinder.com/data/icons/avatars-55/100/avatar_profile_user_music_headphones_shirt_cool-512.png",
             userCreatedAt : new Date()
         }).save()
           .then(resultUser => {
@@ -30,7 +30,7 @@ function registerUser ( req, res ){
             console.log("registering new user successful: ", resultUser.userId); 
 
             let resp = {
-                "cf_id" : resultUser.userId
+                "fin71_id" : resultUser.userId
             };
 
             res.json(resp);
