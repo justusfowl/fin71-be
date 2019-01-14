@@ -15,4 +15,8 @@ router.route('/profile/:userId')
 
     .get(userCtrl.getUserProfileBase)
 
+router.route('/profile/avatar')
+
+    .post(userCtrl.upsertProfileAvatar)
+
 module.exports = router;

@@ -15,6 +15,15 @@ var verifyToken = jwt({
   algorithms: ['RS256']
 });
 
+var errorAuth = function (err, req, res, next){
+
+    if(err.name === 'UnauthorizedError') {
+      res.status(err.status).send({message:err.message});
+      config.logger.error(err);
+      return;
+    }
+
+}
 
 var successAuth = function(req, res, next) {
 
@@ -28,4 +37,4 @@ var successAuth = function(req, res, next) {
 }
 
 
-module.exports = { verifyToken, successAuth } ;
+module.exports = { verifyToken, successAuth, errorAuth } ;

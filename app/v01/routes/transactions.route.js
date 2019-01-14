@@ -18,6 +18,8 @@ router.route('/:projectId')
 
     .get(transactionCtrl.getProjectTransactions)
 
-    
+router.route('/:transactionId')
+
+    .delete(transactionCtrl.deleteTransaction)
 
 module.exports = router;

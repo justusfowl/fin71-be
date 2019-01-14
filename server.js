@@ -44,12 +44,18 @@ app.use(bodyParser.json( {limit: '50mb', extended: true}));
 
 app.use(cors());
 
+if (config.env != "prod"){
+  app.use('/data', express.static('public'));
+}
+
 
 // REGISTER OUR ROUTES
 // =============================================================================
 // all of our routes will be prefixed with /api
 
 app.use('/api/v' + config.APIVersion, routes);
+
+
 
 //app.use(subdomain('api', routes)); //using the same router
 

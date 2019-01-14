@@ -236,10 +236,12 @@ function deleteTransaction(req, res){
         let transactionId = req.params.transactionId; 
             
         await removeTransaction(transactionId, userId).then(response => {
-            res.send(200);           
+            res.json({"message" : "ok"});
         }).catch(error => {
             config.handleError("deleteTransaction", res, error);
         }); 
+
+        return true; 
        
     })();
 
@@ -259,6 +261,7 @@ function getProjectTransactions(req, res){
         'SELECT * FROM fin71.tbltransactions as e\
         left join fin71.tblcontributors as c on e.projectId = c.projectId\
         left join fin71.tblprojects as p on e.projectId = p.projectId\
+        left join fin71.tbltypes as t on e.typeId = t.typeId \
         where c.userId = ? ';
 
         if (projectId){

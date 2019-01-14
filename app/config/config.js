@@ -12,10 +12,11 @@ var versiony = require('versiony');
 
 let env = (process.env.NODE_ENV).toLowerCase() || 'development'; 
 
-var port;
+var port, baseDomain;
 
 if (env == 'development'){
   port = process.env.PORT || 9999;
+  baseDomain = "fin71.local";
 
   
   versiony
@@ -30,7 +31,9 @@ if (env == 'development'){
 }
 else if (env == 'production'){
   port = process.env.PORT || 443;
+  baseDomain = "fin71.de";
 }else{
+  baseDomain = "fin71.local";
   port = 9999;
 }
 
@@ -42,6 +45,7 @@ const config = {
     env: env,
     port: port,
     APIVersion: '01',
+    baseDomain : baseDomain,
 
     https: {
       key : process.env.HTTPS_KEY,
