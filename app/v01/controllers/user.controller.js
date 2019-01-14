@@ -39,7 +39,14 @@ function upsertProfileAvatar (req, res){
     
     var imageInfo = base64ToImage(base64Str,path,optionalObj); 
 
-    var onlinePath = "https://" + config.baseDomain + ":" + config.port + "/data/a/" + imageInfo.fileName
+    var onlinePath;
+
+    if (config.env == "production"){
+        onlinePath = "https://" + config.baseDomain + "/data/a/" + imageInfo.fileName
+    }
+    else{
+        onlinePath = "https://" + config.baseDomain + ":" + config.port + "/data/a/" + imageInfo.fileName
+    }    
 
     const u = models.tblusers.upsert({
         userId: req.auth.userId,
