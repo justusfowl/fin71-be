@@ -48,7 +48,7 @@ function getTypes(req, res){
             whereStrThisMonth = "and (month(t.transactionCreatedAt) = month(current_date()) and year(t.transactionCreatedAt) = year(current_date()))";
         }
 
-        qryStr = 'SELECT \
+        let qryStr = 'SELECT \
             CASE When isnull(sum(proportionTransactionAmt)) then 0 else sum(proportionTransactionAmt) end as proportionTransactionAmt, \
             typesTbl.typeId,  \
             typesTbl.typeTitle, \

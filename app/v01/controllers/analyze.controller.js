@@ -9,35 +9,39 @@ function getTypeTotals(req, res){
 
         let projectId = req.params.projectId;
 
-        let qryStr = 
-                'Select \
-                    typeTitle,  \
-                    abs(sum(factorAmt)) as sumTransactionAmtEur,  \
-                    projectId \
-                    \
-                from ( \
-                    \
-                SELECT \
-                    t.projectId, \
-                    ty.typeTitle, \
-                    pu.userName as payerUserName, \
-                    t.transactionId, \
-                    transactionAmt*factor as factorAmt,  \
-                    u.userName as factorUser \
-                    \
-                FROM fin71.tbltransactions as t \
-                \
-                INNER JOIN fin71.tbltransactionportions as f on f.transactionId = t.transactionId \
-                INNER JOIN fin71.tblusers as u on f.userId = u.userId \
-                INNER JOIN fin71.tblusers as pu on t.transactionPayerUserId = pu.userId \
-                INNER JOIN fin71.tbltypes as ty on t.typeId = ty.typeId \
-                ) as t \
-                where projectId = ? \
-                group by \
-                typeTitle, projectId;'
-                
+        var whereStrThisMonth = "";
 
-        var qryOption = { raw: true, replacements: [projectId], type: models.sequelize.QueryTypes.SELECT}; 
+        if (typeof(req.query.flagOnlyThisMonth) != "undefined"){
+            whereStrThisMonth = "and (month(t.transactionCreatedAt) = month(current_date()) and year(t.transactionCreatedAt) = year(current_date()))";
+        }
+
+        let qryStr = 'SELECT \
+            CASE When isnull(sum(proportionTransactionAmt)) then 0 else sum(proportionTransactionAmt) end as proportionTransactionAmt, \
+            typesTbl.typeId,  \
+            typesTbl.typeTitle, \
+            typesTbl.typeIcon, \
+            typesTbl.userId \
+        from (  \
+            SELECT  \
+                t.*, \
+                t.transactionAmt*p.factor as proportionTransactionAmt \
+            FROM fin71.tbltransactions as t \
+            left join fin71.tbltransactionportions as p on t.transactionId = p.transactionId \
+            where t.projectId = ? and  p.userId = ? ' + whereStrThisMonth + ' \
+        ) as tt  \
+        left join fin71.tblprojects as proj on tt.projectId = proj.projectId  \
+        left join (  \
+        SELECT * FROM fin71.tbltypes  \
+        where userId = ?) as typesTbl on typesTbl.typeId= tt.typeId  \
+        Group by  \
+            typesTbl.typeId, \
+            typesTbl.typeTitle, \
+            typesTbl.typeIcon, \
+            typesTbl.userId; ';
+
+        let userId = req.auth.userId; 
+
+        var qryOption = { raw: true, replacements: [projectId, userId, userId], type: models.sequelize.QueryTypes.SELECT}; 
 
         models.sequelize.query(
             qryStr,
