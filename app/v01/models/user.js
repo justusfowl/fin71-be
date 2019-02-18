@@ -12,6 +12,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: false
     },
+    userEmail: {
+        type: DataTypes.TEXT,
+        allowNull: false
+    },
     userAvatarPath: {
         type: DataTypes.TEXT,
         allowNull: true

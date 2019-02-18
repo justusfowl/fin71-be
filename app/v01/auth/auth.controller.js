@@ -12,7 +12,7 @@ var crypto = require('crypto');
 function registerUser ( req, res ){
 
     let user = req.body.user;
-    let context = req.body.context
+    let context = req.body.context;
     let secret = req.body.auth0_secret;
 
     if (secret == config.auth.auth0_secret){
@@ -21,7 +21,8 @@ function registerUser ( req, res ){
 
         models.tblusers.build({
             userId: newId,
-            userName : user.nickname || user.email.substring(0,user.email.indexOf("@")), 
+            userName : user.nickname || user.email.substring(0,user.email.indexOf("@")),
+            userEmail: user.email,
             userAvatarPath : user.picture_large || "https://cdn1.iconfinder.com/data/icons/avatars-55/100/avatar_profile_user_music_headphones_shirt_cool-512.png",
             userCreatedAt : new Date()
         }).save()

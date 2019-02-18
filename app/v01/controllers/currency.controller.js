@@ -1,4 +1,5 @@
 const config = require('../../config/config');
+const currencyToSymbolMap = require('currency-symbol-map')
 
 function listAvailableCurrencies(req, res){
 
@@ -7,16 +8,28 @@ function listAvailableCurrencies(req, res){
 
     for (var property in config.currencyData) {
       if (config.currencyData.hasOwnProperty(property)) {
-          allCur.push(property)
+          allCur.push({
+            "val": property, 
+            "base" : config.currencyBase,
+            "rate" : config.currencyData[property],
+            "symbol" : currencyToSymbolMap(property)
+          })
       }
     }
-  
-    res.json(allCur);
+
+    let respObj = {
+      "timestamp" : config.currencyTimeStamp, 
+      "currencies" : allCur
+    }
+
+    res.json(respObj);
+
+    config.checkCurrencyRatesRefresh(); 
+
   }catch(err){
     config.handleError("listAvailableCurrencies", res, err)
   }
  
-
 }
 
 
@@ -78,6 +91,9 @@ function convertAmountToEur(req, res){
 
       if (convertObj){
         res.json(convertObj);
+
+        config.checkCurrencyRatesRefresh(); 
+        
       }else{
         res.send(400, {"msg": "currency not found"})
       }

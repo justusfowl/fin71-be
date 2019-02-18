@@ -4,44 +4,79 @@ const util = require("../util");
 const projectCtrl = require("./projects.controller")
 const _ = require("lodash");
 
-function getTypeTotals(req, res){
+function getTransactionSums(req, res){
     try{
-
-        let projectId = req.params.projectId;
-
-        var whereStrThisMonth = "";
-
-        if (typeof(req.query.flagOnlyThisMonth) != "undefined"){
-            whereStrThisMonth = "and (month(t.transactionCreatedAt) = month(current_date()) and year(t.transactionCreatedAt) = year(current_date()))";
-        }
-
-        let qryStr = 'SELECT \
-            CASE When isnull(sum(proportionTransactionAmt)) then 0 else sum(proportionTransactionAmt) end as proportionTransactionAmt, \
-            typesTbl.typeId,  \
-            typesTbl.typeTitle, \
-            typesTbl.typeIcon, \
-            typesTbl.userId \
-        from (  \
-            SELECT  \
-                t.*, \
-                t.transactionAmt*p.factor as proportionTransactionAmt \
-            FROM fin71.tbltransactions as t \
-            left join fin71.tbltransactionportions as p on t.transactionId = p.transactionId \
-            where t.projectId = ? and  p.userId = ? ' + whereStrThisMonth + ' \
-        ) as tt  \
-        left join fin71.tblprojects as proj on tt.projectId = proj.projectId  \
-        left join (  \
-        SELECT * FROM fin71.tbltypes  \
-        where userId = ?) as typesTbl on typesTbl.typeId= tt.typeId  \
-        Group by  \
-            typesTbl.typeId, \
-            typesTbl.typeTitle, \
-            typesTbl.typeIcon, \
-            typesTbl.userId; ';
 
         let userId = req.auth.userId; 
 
-        var qryOption = { raw: true, replacements: [projectId, userId, userId], type: models.sequelize.QueryTypes.SELECT}; 
+        let projectId = req.params.projectId;
+
+        let flagAggregates = req.query.flagAggregates;
+
+        let configObj = req.body.config; 
+
+        if (typeof(configObj) == "undefined"){
+            res.send(500, "Please provide a query config object");
+            return; 
+        }
+
+        var whereStrThisMonth = "";
+        var targetMode = ""; 
+
+        if (typeof(req.query.flagOnlyThisMonth) != "undefined"){
+            whereStrThisMonth = "where (month(t.transactionCreatedAt) = month(current_date()) and year(t.transactionCreatedAt) = year(current_date()))";
+        }
+
+        if (whereStrThisMonth.length == 0){
+            whereStrThisMonth = " where "
+        }else{
+            whereStrThisMonth += " and  "
+        }
+
+        if (configObj.targetMode == "cost"){
+            targetMode = "userId"; 
+            
+           
+        }else if (configObj.targetMode == "expense"){
+            targetMode = "transactionPayerUserId"; 
+        }
+
+        whereStrThisMonth += targetMode + " = ?"
+
+        var qryOption = { raw: true, replacements: [userId], type: models.sequelize.QueryTypes.SELECT}; 
+        
+        if (typeof(projectId) != "undefined"){
+            whereStrThisMonth += " and t.projectId = ?";
+
+            qryOption.replacements.push(projectId);
+        }
+
+
+        let qryStr = 'SELECT \
+            sum(factorAmt) as proportionTransactionAmt,  \
+            p.projectId, \
+            ty.typeTitle,  \
+            transactions.typeId, transactions.'
+            + targetMode + ', \
+            lpad(month(transactions.transactionCreatedAt), 2, 0) as monthTransactionCreatedAt, \
+            year(transactions.transactionCreatedAt) as yearTransactionCreatedAt \
+                \
+            FROM ( \
+            SELECT  \
+                    t.*, \
+                    tp.userId, \
+                    transactionAmt*tp.factor as factorAmt \
+                FROM fin71.tbltransactions as t \
+                inner join fin71.tbltransactionportions as tp on t.transactionId = tp.transactionId '
+                + whereStrThisMonth + ' \
+            ) as transactions \
+            inner join fin71.tblprojects as p on transactions.projectId = p.projectId  \
+            inner join fin71.tbltypes as ty on transactions.typeId = ty.typeId  \
+            GROUP BY  \
+                p.projectId, ty.typeTitle, transactions.typeId, transactions.' + targetMode + ',  \
+                lpad(month(transactions.transactionCreatedAt), 2, 0) ,  \
+                year(transactions.transactionCreatedAt);'
+
 
         models.sequelize.query(
             qryStr,
@@ -51,6 +86,7 @@ function getTypeTotals(req, res){
             if (totals) {
 
                 res.json(totals);
+
             } else {
                 res.send(401, "project not found");
             }
@@ -102,8 +138,12 @@ function getSaldo(req, res){
                 ).then(transactions => {
                     if (transactions) {
                         var userMap = {};
+                        var tAnalysis = {}; 
+                        var totalAmountEur = 0;
 
                         transactions.forEach(function(x) {
+
+                            totalAmountEur += parseFloat(x.factorAmt);
 
                             if (!userMap[x.factorUserName]){
                                 userMap[x.factorUserName] = {
@@ -143,6 +183,7 @@ function getSaldo(req, res){
                                         'sumTransactionAmt': _.sumBy(objs, 'transactionAmt') }))
                                     .value();
                             userMap[u]["tSaldo"] = output;
+                            tAnalysis[u] = output;
                         }
 
                         let totalSaldos = [];
@@ -186,7 +227,7 @@ function getSaldo(req, res){
 
                                     deltaAmt = saldoUserAforUserB.sumTransactionAmt-saldoUserBforUserA.sumTransactionAmt;
 
-                                    if (deltaAmt < 0){
+                                    if (Math.abs(saldoUserAforUserB.sumTransactionAmt) < Math.abs(saldoUserBforUserA.sumTransactionAmt)){
                                         source = uA; 
                                         target = uB;
                                     }else{
@@ -210,9 +251,13 @@ function getSaldo(req, res){
 
                         }
 
-                        console.log(totalSaldos)
+                        let responseObj = {
+                            "tAnalysis": tAnalysis, 
+                            "pSaldo" : totalSaldos,
+                            "totalAmountEur" : totalAmountEur
+                        }
 
-                        res.json(totalSaldos);
+                        res.json(responseObj);
                     } else {
                         res.send(401, "Transactions not found");
                     }
@@ -233,4 +278,4 @@ function getSaldo(req, res){
     }
 }
 
-module.exports = { getSaldo, getTypeTotals };
+module.exports = { getSaldo, getTransactionSums };

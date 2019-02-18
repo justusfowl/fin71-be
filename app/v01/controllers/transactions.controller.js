@@ -182,6 +182,31 @@ async function cleanTransactionPortions (transaction) {
     );
 }
 
+async function _getTransactionPortionsDb (transactionId) {
+    
+    return new Promise(
+        (resolve, reject) => {
+
+            var qryOption = { raw: true, replacements: [transactionId], type: models.sequelize.QueryTypes.SELECT}; 
+        
+            let qryStr = 
+            'SELECT * FROM fin71.tbltransactionportions as p \
+            left join tblusers as u on p.userId = u.userId\
+            where transactionId = ?'
+        
+            models.sequelize.query(
+                qryStr,
+                qryOption
+            ).then(transactionPortions => {
+                resolve(transactionPortions);
+    
+            }).catch(err => {
+                reject(err);
+            });
+        }
+    );
+}
+
 async function getTransactionId (transaction) {
     
     return new Promise(
@@ -247,6 +272,23 @@ function deleteTransaction(req, res){
 
 }
 
+function getTransactionPortions(req, res){
+
+    (async () => {
+        let transactionId = req.params.transactionId; 
+            
+        await _getTransactionPortionsDb(transactionId).then(transactionPortions => {
+            res.json(transactionPortions);
+        }).catch(error => {
+            config.handleError("getTransactionPortions", res, error);
+        }); 
+
+        return true; 
+       
+    })();
+
+}
+
 function getProjectTransactions(req, res){
 
     try{
@@ -258,10 +300,11 @@ function getProjectTransactions(req, res){
         var qryOption = { raw: true, replacements: [userId], type: models.sequelize.QueryTypes.SELECT}; 
         
         let qryStr = 
-        'SELECT * FROM fin71.tbltransactions as e\
+        'SELECT *, creatorUser.userName as transactionCreatorUserName FROM fin71.tbltransactions as e\
         left join fin71.tblcontributors as c on e.projectId = c.projectId\
         left join fin71.tblprojects as p on e.projectId = p.projectId\
         left join fin71.tbltypes as t on e.typeId = t.typeId \
+        left join fin71.tblusers as creatorUser on e.transactionCreatorUserId = creatorUser.userId \
         where c.userId = ? ';
 
         if (projectId){
@@ -291,4 +334,4 @@ function getProjectTransactions(req, res){
 
 }
 
-module.exports = { deleteTransaction, saveTransaction, getProjectTransactions};
+module.exports = { deleteTransaction, saveTransaction, getProjectTransactions, getTransactionPortions};

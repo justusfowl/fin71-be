@@ -43,28 +43,38 @@ function saveProject(req, res){
 
         var project = new Project(req.body);
 
-        project.setUserId = userId;
+        // ensure owner is contributor          
+        _isProjectOwner(userId, project.projectId).then(respObj => {
 
-        // ensure owner is contributor
+            project.setUserId = userId;
 
+            if (respObj.isOwner || respObj.isNewProject){
 
-        models.tblprojects.upsert(project).then(pjct => {
+                models.tblprojects.upsert(project).then(pjct => {
 
-            getProjectItem(project)
-                .then((projectObj) => {
-                    return removeProjectContributors(projectObj);
-                })
-                .then((projectId) => {
-                    project.setProjectId = projectId; 
-                    let array = project.contributors;
-                    return insertProjectContributors(projectId, array);
-                }).then((contributorIdArray) => {
-                    res.send(project);
-                })
-                .catch(error => {
+                    getProjectItem(project)
+                        .then((projectObj) => {
+                            return removeProjectContributors(projectObj);
+                        })
+                        .then((projectId) => {
+                            project.setProjectId = projectId; 
+                            let array = project.contributors;
+                            return insertProjectContributors(projectId, array);
+                        }).then((contributorIdArray) => {
+                            res.send(project);
+                        })
+                        .catch(error => {
+                            config.handleError("SaveProject", res, error);
+                        });
+                        
+                }).catch(error => {
                     config.handleError("SaveProject", res, error);
                 });
-                
+            }else{
+                res.send(401, "User is not privileged to modify the project settings.")
+            }
+
+            
         }).catch(error => {
             config.handleError("SaveProject", res, error);
         });
@@ -72,6 +82,48 @@ function saveProject(req, res){
     }catch(err){
         config.handleError("SaveProject", res, err)
     }
+}
+
+async function _isProjectOwner (userId, projectId) {
+    
+    return new Promise(
+        (resolve, reject) => {
+            if (projectId){
+                models.tblprojects.findAll({
+                    where: {
+                        projectId : projectId, 
+                        userId : userId
+                    }
+                }).then(function(response) {
+
+                    let respObj = {
+                        "projectId" : projectId,
+                        "userId" : userId
+                    }
+                    
+                    if (response.length > 0){
+                        respObj["isOwner"] = true; 
+                    }else{
+                        respObj["isOwner"] = false; 
+                    }
+
+                    resolve(respObj); 
+    
+                    }, function(err) {
+                        reject(err);
+                });
+            }else{
+                let respObj = {
+                    "isNewProject" : true
+                };
+                config.logger.info("No projectId provided - new project will be created for the user requesting")
+                resolve(respObj); 
+                
+            }
+
+        }
+    );
+
 }
 
 async function _getProjectContributors (projectId) {
@@ -182,7 +234,19 @@ function getProjects(req, res){
 
         let getAgg = req.query.aggregates;
 
+        let isIndividualProjectRequest = false;
+
+        let projectId = req.params.projectId;
+
+        let projectWhereStr = ""; 
+
         var qryOption = { raw: true, replacements: [userId], type: models.sequelize.QueryTypes.SELECT}; 
+
+        if (projectId && typeof(projectId) != "undefined"){
+            projectWhereStr = " where p.projectId = ?";
+            qryOption.replacements.push(projectId);
+            isIndividualProjectRequest = true; 
+        }
 
         let qryStr = 
         'SELECT \
@@ -190,10 +254,10 @@ function getProjects(req, res){
             u.userId as contribUserId,\
             u.userName as contribUserName,\
             u.userAvatarPath as contribUserAvatarPath \
-        FROM fin71.tblprojects as p\
+        FROM fin71.tblprojects as p \
         left join fin71.tblcontributors as c on p.projectId = c.projectId\
         inner join (select * from fin71.tblcontributors where userId = ? ) as projects on p.projectId = projects.projectId \
-        left join fin71.tblusers as u on c.userId = u.userId \
+        left join fin71.tblusers as u on c.userId = u.userId ' + projectWhereStr + ' \
         order by p.projectId ';
 
         if (getAgg){
@@ -203,7 +267,7 @@ function getProjects(req, res){
                 u.userId as contribUserId,\
                 u.userName as contribUserName,\
                 u.userAvatarPath as contribUserAvatarPath \
-            FROM fin71.tblprojects as p\
+            FROM fin71.tblprojects as p \
             left join fin71.tblcontributors as c on p.projectId = c.projectId\
             inner join (select * from fin71.tblcontributors where userId = ? ) as projects on p.projectId = projects.projectId \
             left join ( \
@@ -212,7 +276,7 @@ function getProjects(req, res){
                 projectId \
                 from fin71.tbltransactions \
                 group by projectId) as t on p.projectId = t.projectId \
-            left join fin71.tblusers as u on c.userId = u.userId \
+            left join fin71.tblusers as u on c.userId = u.userId ' + projectWhereStr + ' \
             order by p.projectId ';
         }
 
@@ -231,6 +295,7 @@ function getProjects(req, res){
                         "projectId" : element.projectId, 
                         "projectTitle" : element.projectTitle,
                         "userId" : element.userId,
+                        "flagProjectOwner" : element.userId == userId ? true : false,
                         "projectCreatedAt" : element.projectCreatedAt, 
                         "projectIconPath": element.projectIconPath, 
                         "contributors" : []
@@ -272,7 +337,16 @@ function getProjects(req, res){
                 
                 _(projects).forEach(nestProjects);
 
-                res.json(result);
+                if (isIndividualProjectRequest){
+                    if (result.length == 1){
+                        res.json(result[0]);
+                    }else{
+                        res.send(500, "Something went wrong with individual-project request, projectId " + projectId);
+                    }
+                }else{
+                    res.json(result);
+                }
+                
             } else {
                 res.send(401, "projects not found");
             }
@@ -357,4 +431,4 @@ async function deleteProjectAction (projectId, userId) {
     );
 }
 
-module.exports = { _getProjectContributors, saveProject, getProjects, deleteProject};
+module.exports = { _getProjectContributors, _isProjectOwner, saveProject, getProjects, deleteProject};

@@ -22,4 +22,8 @@ router.route('/:transactionId')
 
     .delete(transactionCtrl.deleteTransaction)
 
+router.route('/:transactionId/portions')
+
+    .get(transactionCtrl.getTransactionPortions)
+
 module.exports = router;

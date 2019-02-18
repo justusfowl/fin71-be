@@ -40,6 +40,8 @@ else if (env == 'production'){
 
 const config = {
     currencyData : {},
+    currencyTimeStamp : 0, 
+    currencyBase: "", 
 
     logger : logger.logger,
     env: env,
@@ -85,11 +87,24 @@ const config = {
 
       await getCurrencyRates(thisConfig).then((result) => {
         this.currencyData = result.rates;
+        this.currencyTimeStamp = result.timestamp * 1000;
+        this.currencyBase = result.base;
       }).catch(err => {
         this.logger.error(err);
       });
       
     },
+
+    checkCurrencyRatesRefresh : function(){
+      let now = new Date(); 
+      let nowTs = now.getTime()/1000; 
+      let lastTs = this.currencyTimeStamp/1000; 
+
+      if ((nowTs - lastTs) > 60*60*24){
+        this.setCurrencyRates(); 
+      }
+
+    }, 
 
     handleError : function (source, res, err){
 
