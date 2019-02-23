@@ -29,23 +29,48 @@ class Transaction{
             
             this.transactionPayerUserId = option.transactionPayerUserId || null; 
 
-
             this.transactionId = option.transactionId || null; 
-            this.typeId = option.typeId;
-            this.transactionTitle = option.transactionTitle || ''; 
+            
+            this.transactionTitle = option.transactionTitle || '';
+
+            if ( typeof(option.transactionCategory) == "undefined"){
+                throw new Error("No expense category provided")
+            }else{
+                this.transactionCategory = option.transactionCategory; 
+            }
             
             if(option.portions){
                 this.portions = option.portions; 
             }else{
-                this.portions = []
-                if (option.userId){
+                this.portions = [];
+                if (option.userId && option.transactionCategory == 1){
                     // default, if nothing is given, add creator of expense = owner to 100%;
                     this.portions.push({userId : option.userId, factor: 1});  
-                }                
+                }else if(option.transactionCategory == 1 && typeof(option.portions) == "undefined"){
+                    throw new Error("No target user for money transfer defined ")
+                }
             }
 
             if (option.projectId){
                 this.setProjectId = option.projectId;
+            }
+
+                this.transactionAmt = Math.abs(parseFloat(this.transactionAmt));
+                this.transactionAmtOrig = Math.abs(parseFloat(this.transactionAmtOrig));
+
+            // expenses -> always have to be negative 
+            if (this.transactionCategory == 1){
+                this.transactionAmt = parseFloat(this.transactionAmt) * -1;
+                this.transactionAmtOrig = parseFloat(this.transactionAmtOrig) * -1;
+
+                this.typeId = option.typeId;
+
+            }else{
+
+            // money transfer is positive towards other member of the project
+            // hence: do not modify the absolute value of the amount  
+            // money transfers do not carry typeId information 
+                
             }
         }
     }
@@ -80,14 +105,22 @@ class Transaction{
 
 function saveTransaction(req, res){
 
-    let userId  = req.auth.userId; 
+    let userId, projectId, t; 
 
-    let projectId = req.params.projectId;
+    try{
+        userId  = req.auth.userId; 
 
-    let t = new Transaction(req.body);
-
-    t.setTransactionCreatorId = userId;
-    t.setProjectId = projectId; 
+        projectId = req.params.projectId;
+    
+        t = new Transaction(req.body);
+    
+        t.setTransactionCreatorId = userId;
+        t.setProjectId = projectId; 
+    }catch(err){
+        config.handleError("save Transaction could not be completed, not all fields being provided", res, err);
+        return; 
+    }
+    
     
     models.tbltransactions.upsert(t).then(transaction => {
 
@@ -102,7 +135,6 @@ function saveTransaction(req, res){
 
                 t.setTransactionId = upsertedTransactionId;
 
-                
                 // TODO: checke, dass auch nur project-menschen Kosten aufgebrummt bekommen
 
                 let portions = await setTransactionPortions(t).catch(error => {
@@ -191,7 +223,7 @@ async function _getTransactionPortionsDb (transactionId) {
         
             let qryStr = 
             'SELECT * FROM fin71.tbltransactionportions as p \
-            left join tblusers as u on p.userId = u.userId\
+            left join tblusers as u on p.userId = u.userId \
             where transactionId = ?'
         
             models.sequelize.query(
@@ -208,6 +240,24 @@ async function _getTransactionPortionsDb (transactionId) {
 }
 
 async function getTransactionId (transaction) {
+
+    let whereObj; 
+
+    if (transaction.transactionCategory == 1){
+        whereObj = {
+            transactionAmt: parseFloat(parseFloat(transaction.transactionAmt).toFixed(2)),
+            typeId: transaction.typeId,
+            projectId: transaction.projectId,
+            transactionTitle : transaction.transactionTitle
+        }
+    }else if (transaction.transactionCategory == 2){
+        whereObj = {
+            transactionAmt: parseFloat(parseFloat(transaction.transactionAmt).toFixed(2)),
+            transactionCategory : transaction.transactionCategory,
+            projectId: transaction.projectId,
+            transactionTitle : transaction.transactionTitle
+        }
+    }
     
     return new Promise(
         (resolve, reject) => {
@@ -215,12 +265,7 @@ async function getTransactionId (transaction) {
                 attributes: [
                     [sequelize.fn('max', sequelize.col('transactionId')), 'transactionId'],
                  ],
-                where: {
-                    transactionAmt: parseFloat(parseFloat(transaction.transactionAmt).toFixed(2)),
-                    typeId: transaction.typeId,
-                    projectId: transaction.projectId,
-                    transactionTitle : transaction.transactionTitle
-                }
+                where: whereObj
             }).then(function(response) {
 
                 if (response.transactionId){

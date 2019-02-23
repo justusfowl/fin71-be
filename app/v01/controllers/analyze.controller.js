@@ -20,11 +20,11 @@ function getTransactionSums(req, res){
             return; 
         }
 
-        var whereStrThisMonth = "";
+        var whereStrThisMonth = " where t.transactionCategory = 1 ";
         var targetMode = ""; 
 
         if (typeof(req.query.flagOnlyThisMonth) != "undefined"){
-            whereStrThisMonth = "where (month(t.transactionCreatedAt) = month(current_date()) and year(t.transactionCreatedAt) = year(current_date()))";
+            whereStrThisMonth += " and (month(t.transactionCreatedAt) = month(current_date()) and year(t.transactionCreatedAt) = year(current_date()))";
         }
 
         if (whereStrThisMonth.length == 0){
@@ -141,6 +141,9 @@ function getSaldo(req, res){
                         var tAnalysis = {}; 
                         var totalAmountEur = 0;
 
+                        // get a user map object with all users of that project
+                        // each user can have spent transactions
+
                         transactions.forEach(function(x) {
 
                             totalAmountEur += parseFloat(x.factorAmt);
@@ -159,6 +162,8 @@ function getSaldo(req, res){
                             
                         });
 
+                        // dedicate each project transaction to the user who carries the cost
+                        // and indicate who paid for the transaction amount
                         transactions.forEach(function(x) {
 
                             let tmpObj = {
@@ -171,6 +176,8 @@ function getSaldo(req, res){
                         });
 
                         const users = Object.keys(userMap);
+
+                        // get the total cost incured per user
 
                         for (const u of users) {
                             let userTransactions = userMap[u].t;
@@ -187,69 +194,126 @@ function getSaldo(req, res){
                         }
 
                         let totalSaldos = [];
-                        
-                        // iterate through all combinations of user saldos (uA=user(A))
+                        let pairsNetted = []; 
+
+                        // go through all users and their costs which have been incurred by other people
                         for (const uA of users) {
 
-                            for (const uB of users) {
-                                // User A owes Person B amount -XYZ €
+                            // check each user 
+                            userMap[uA].tSaldo.forEach(payerUserElement => {
 
-                                if (uA != uB){
+                                // Disregards payments done for myself
+                                if (payerUserElement.payerUserName != uA){
 
-                                    // has userB paid for userA ?
-                                    let saldoIndexUserA = userMap[uA].tSaldo.findIndex(x => (x.payerUserName == uB));
+                                    let transactionAmountOtherUserHasPaidForUA = parseFloat(payerUserElement.sumTransactionAmt); 
 
-                                    // has userA paid for userB ?
-                                    let saldoIndexUserB = userMap[uB].tSaldo.findIndex(x => (x.payerUserName == uA));
-                                    
-    
-                                    let saldoUserAforUserB, saldoUserBforUserA;
-    
-                                    if (saldoIndexUserA == -1){
-                                        saldoUserAforUserB = {
-                                            'payerUserName': uB,
-                                            'sumTransactionAmt': 0
+                                    // find if uA has made payments for payerUserName as well
+                                    let uA_hasPaidForPayerIndex = userMap[payerUserElement.payerUserName].tSaldo.findIndex(x => (x.payerUserName == uA));
+
+                                    let uATransactionAmtForPayer = 0;
+
+                                    if (uA_hasPaidForPayerIndex != -1){
+                                        uATransactionAmtForPayer = parseFloat(userMap[payerUserElement.payerUserName].tSaldo[uA_hasPaidForPayerIndex].sumTransactionAmt);
+                                    }
+
+                                    let delta;
+
+                                    // if transactionAmountOtherUserHasPaidForUA is greater 0 -> other user has transfered money
+                                    // to the user A
+                                    if (transactionAmountOtherUserHasPaidForUA > 0){
+
+                                    }else{
+                                        
+                                    }
+
+                                    if (uATransactionAmtForPayer > 0){
+                                        delta =  transactionAmountOtherUserHasPaidForUA + uATransactionAmtForPayer; 
+                                    }else{
+                                        delta =  transactionAmountOtherUserHasPaidForUA - uATransactionAmtForPayer; 
+                                    }
+                                   
+
+                                   let saldoItm  = { "value" : Math.abs(delta) }
+
+                                    if (Math.abs(transactionAmountOtherUserHasPaidForUA) > Math.abs(uATransactionAmtForPayer)){
+                                        saldoItm["source"] = uA; 
+                                        saldoItm["target"] = payerUserElement.payerUserName
+                                    }else{
+                                        saldoItm["source"] = payerUserElement.payerUserName; 
+                                        saldoItm["target"] = uA; 
+                                    }
+
+
+                                    // create a reference object as 'saldoPair' to indicate 
+                                    // that the two users have been compared 
+                                    // use an alphabetical order to ensure unqiqueness of saldopairs
+                                    let tmpArray = [uA, payerUserElement.payerUserName]; 
+                                    let tmpArraySorted = tmpArray.sort((a, b) => a.localeCompare(b));
+
+                                    let saldoPair = {
+                                        "a" : tmpArraySorted[0], 
+                                        "b" : tmpArraySorted[1]
+                                    }
+
+                                    if (pairsNetted.findIndex(x => (x.a == saldoItm.source && x.b == saldoItm.target)) == -1 &&
+                                    pairsNetted.findIndex(x => (x.b == saldoItm.source && x.a == saldoItm.target)) == -1){
+                                        pairsNetted.push(saldoPair); 
+
+                                        // if saldo = 0 not necessary to indclude 
+                                        if (saldoItm.value > 0){
+                                            totalSaldos.push(saldoItm);
                                         }
-                                    }else{
-                                        saldoUserAforUserB = userMap[uA].tSaldo[saldoIndexUserA]
-                                    }
-    
-                                    if (saldoIndexUserB == -1){
-                                        saldoUserBforUserA = {
-                                            'payerUserName': uA,
-                                            'sumTransactionAmt': 0
-                                        }
-                                    }else{
-                                        saldoUserBforUserA = userMap[uB].tSaldo[saldoIndexUserB]
-                                    }
-    
-                                    let deltaAmt, source, target;
-
-                                    deltaAmt = saldoUserAforUserB.sumTransactionAmt-saldoUserBforUserA.sumTransactionAmt;
-
-                                    if (Math.abs(saldoUserAforUserB.sumTransactionAmt) < Math.abs(saldoUserBforUserA.sumTransactionAmt)){
-                                        source = uA; 
-                                        target = uB;
-                                    }else{
-                                        source = uB;
-                                        target = uA;
-                                    }
-
-                                    let saldoItm = {
-                                        "source" : source, 
-                                        "target" : target, 
-                                        "value" : Math.abs(deltaAmt)
-                                    }
-
-                                    if (totalSaldos.findIndex(x => (x.source == saldoItm.source && x.target == saldoItm.target)) == -1){
-                                        totalSaldos.push(saldoItm)
+                                        
                                     }
 
                                 }
-
-                            }
+                                
+                            });
 
                         }
+
+
+                        let cntChanged = 0;
+                        
+                        do {
+                             
+                            cntChanged = 0;
+
+                            totalSaldos.forEach(function (saldoElement, myIndex){
+
+                                let isThereSourceIndex = totalSaldos.findIndex(x => x.source == saldoElement.target);
+
+                                if (isThereSourceIndex != -1 && isThereSourceIndex != myIndex){
+
+                                    if (saldoElement.value > totalSaldos[isThereSourceIndex].value){
+                                        
+                                        totalSaldos[isThereSourceIndex].source = saldoElement.source
+                                        saldoElement.value = saldoElement.value - totalSaldos[isThereSourceIndex].value;
+                                        
+                                    }else{
+                                        saldoElement.target = totalSaldos[isThereSourceIndex].target; 
+                                        totalSaldos[isThereSourceIndex].value = totalSaldos[isThereSourceIndex].value - saldoElement.value
+                                    }
+
+                                    cntChanged++;
+
+                                }
+                                
+                            });
+
+                        }while(cntChanged > 1);
+                        
+                        // group by source and target
+
+                        totalSaldos.forEach(function(element, myIndex) {
+                            let groupIndex = totalSaldos.findIndex(x => (x.source == element.source) && (x.target == element.target));
+
+                            if (groupIndex != myIndex){
+                                totalSaldos[groupIndex].value += element.value; 
+                                totalSaldos.splice(myIndex, 1); 
+                            }
+                            
+                        });
 
                         let responseObj = {
                             "tAnalysis": tAnalysis, 

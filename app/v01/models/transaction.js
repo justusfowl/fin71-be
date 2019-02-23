@@ -50,6 +50,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: false
     },
+    transactionCategory: {
+        type: DataTypes.TEXT,
+        allowNull: false
+    },
 }, {
     timestamps : false
 });

@@ -61,7 +61,7 @@ function getTypes(req, res){
                 t.transactionAmt*p.factor as proportionTransactionAmt \
             FROM fin71.tbltransactions as t \
             left join fin71.tbltransactionportions as p on t.transactionId = p.transactionId \
-            where p.userId = ? ' + whereStrThisMonth + ' \
+            where t.transactionCategory = 1 and p.userId = ? ' + whereStrThisMonth + ' \
         ) as tt  \
         left join fin71.tblprojects as proj on tt.projectId = proj.projectId  \
         right join (  \
@@ -176,7 +176,7 @@ function getProjectTypes(req, res){
                    sum(t.transactionAmt*p.factor) as proportionTransactionAmt  \
                FROM fin71.tbltransactions as t  \
                left join fin71.tbltransactionportions as p on t.transactionId = p.transactionId  \
-               where t.projectId = ? \
+               where t.transactionCategory = 1 and t.projectId = ? \
                and (month(t.transactionCreatedAt) = month(current_date()) and year(t.transactionCreatedAt) = year(current_date())) \
                group by t.typeId) as tt on pt.typeId = tt.typeId \
         where projectId = ? ;'

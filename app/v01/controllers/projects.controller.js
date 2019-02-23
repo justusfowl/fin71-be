@@ -275,6 +275,7 @@ function getProjects(req, res){
                 sum(transactionAmt) as sumTransactionsEur, \
                 projectId \
                 from fin71.tbltransactions \
+                where transactionCategory = 1 \
                 group by projectId) as t on p.projectId = t.projectId \
             left join fin71.tblusers as u on c.userId = u.userId ' + projectWhereStr + ' \
             order by p.projectId ';

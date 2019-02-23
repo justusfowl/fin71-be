@@ -5,6 +5,7 @@
 /dist-server
 /tmp
 /out-tsc
+/public
 
 # dependencies
 /node_modules
@@ -37,6 +38,7 @@ testem.log
 Gruntfile.js
 /images
 /feedback
+
 /public/a/*
 /public/i/*
 /public/t/*
