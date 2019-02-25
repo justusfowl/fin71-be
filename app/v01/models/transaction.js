@@ -40,7 +40,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     typeId: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: true
     },
     transactionPayerUserId: {
         type: DataTypes.TEXT,
