@@ -63,6 +63,10 @@ module.exports = (sequelize, DataTypes) => {
     flagUnread : {
         type: DataTypes.INTEGER,
         allowNull: true
+    },
+    localSysBankId : {
+        type: DataTypes.INTEGER,
+        allowNull: false
     }
 }, {
     timestamps : false
