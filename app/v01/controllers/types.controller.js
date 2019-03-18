@@ -26,8 +26,13 @@ function saveType(req, res){
         type.setUserId = userId;
     
         models.tbltypes.upsert(type).then(resType => {
-
-            res.json(200);
+            
+            _getTypeItem(type).then(response => {
+                res.json(response);
+            }).catch(error => {
+                config.handleError("saveType", res, error);
+            });
+            
             
         }).catch(error => {
             config.handleError("SaveProject", res, error);
@@ -36,6 +41,35 @@ function saveType(req, res){
     }catch(err){
         config.handleError("SaveProject", res, err)
     }
+
+}
+
+async function _getTypeItem (type) {
+    
+    return new Promise(
+        (resolve, reject) => {
+            models.tbltypes.findAll({
+                where: {
+                    typeTitle : type.typeTitle, 
+                    userId : type.userId
+                }
+            }).then(function(response) {
+
+                if(response.length > 1){
+                    throw "No unique type object could be identified"
+                }else if(response.length == 1){
+                    resolve(response[0]);
+                }else{
+                    throw "No unique type object could be identified"
+                }
+
+                return null;
+
+                }, function(err) {
+                    reject(err);
+            });
+        }
+    );
 
 }
 

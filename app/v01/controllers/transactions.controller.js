@@ -345,12 +345,15 @@ function getProjectTransactions(req, res){
         var qryOption = { raw: true, replacements: [userId], type: models.sequelize.QueryTypes.SELECT}; 
         
         let qryStr = 
-        'SELECT *, creatorUser.userName as transactionCreatorUserName FROM fin71.tbltransactions as e\
+        "SELECT *, creatorUser.userName as transactionCreatorUserName, \
+        CASE WHEN IsNull(accT.linkTransactionId) THEN 0 ELSE 1 END as hasAccTLink \
+        FROM fin71.tbltransactions as e\
         left join fin71.tblcontributors as c on e.projectId = c.projectId\
         left join fin71.tblprojects as p on e.projectId = p.projectId\
         left join fin71.tbltypes as t on e.typeId = t.typeId \
+        left join (Select linkTransactionId from fin71.tblacctransactions where transactionOwnerId = '" + userId + "') as accT on e.transactionId = accT.linkTransactionId \
         left join fin71.tblusers as creatorUser on e.transactionCreatorUserId = creatorUser.userId \
-        where c.userId = ? ';
+        where c.userId = ? ";
 
         if (projectId){
             qryOption.replacements.push(projectId);
