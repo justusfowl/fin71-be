@@ -7,10 +7,12 @@ var router = express.Router();
 
 router.route('/')
 
-    //.post(transactionCtrl.addTransaction)
-
     .get(accTransactionCtrl.getAccountTransactions) 
 
     .put(accTransactionCtrl.updateAccTransaction)
+
+router.route('/findExpense')
+
+    .post(accTransactionCtrl.findExistingExpenseForAccTLink) 
 
 module.exports = router;

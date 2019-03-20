@@ -55,6 +55,10 @@ class Transaction{
                 this.setProjectId = option.projectId;
             }
 
+            if (option.transactionCreatedAt){
+                this.transactionCreatedAt = new Date(option.transactionCreatedAt);
+            }
+
                 this.transactionAmt = Math.abs(parseFloat(this.transactionAmt));
                 this.transactionAmtOrig = Math.abs(parseFloat(this.transactionAmtOrig));
 

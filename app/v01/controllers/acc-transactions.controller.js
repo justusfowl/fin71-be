@@ -29,7 +29,7 @@ function getAccountTransactions(req, res){
                 \
                 INNER JOIN fin71.tblbanks as b on t.localSysBankId = b.bankId \
                 INNER JOIN fin71.tblusers as u on t.transactionOwnerId = u.userId ' + whereStr + ' \
-                ORDER BY t.transactionDate Desc LIMIT ' + limit + ' OFFSET ' + offset;
+                ORDER BY t.transactionEntryDate Desc LIMIT ' + limit + ' OFFSET ' + offset;
 
 
         models.sequelize.query(
@@ -108,6 +108,84 @@ function updateAccTransaction(req, res){
    
 }
 
+async function _getUserPayerTransactions(accTransaction){
+
+    return new Promise(
+        (resolve, reject) => {
+
+            let userId = accTransaction.transactionOwnerId;
+            let transactionDate = accTransaction.transactionDate; 
+            let transactionAmt = accTransaction.transactionAmt;
+
+            let amtLowerBound = Math.abs(transactionAmt) * 0.98; 
+            let amtUpperBound = Math.abs(transactionAmt) * 1.02; 
+
+            var qryOption = { raw: true, replacements: [transactionDate, userId, userId, userId, amtLowerBound, amtUpperBound, transactionDate], type: models.sequelize.QueryTypes.SELECT}; 
+            
+            let qryStr = 
+            "SELECT t.*, DATEDIFF(t.transactionCreatedAt, ?) as dateDiff, p.projectTitle, ty.typeTitle \
+            FROM fin71.tbltransactions as t \
+            left join ( \
+            SELECT * FROM tbltransactionportions where userId = ?) as tp on t.transactionId = tp.transactionId  \
+            inner join tblprojects as p on t.projectId = p.projectId \
+            inner join tbltypes as ty on t.typeId = ty.typeId \
+            where   \
+            (tp.userId = ? or t.transactionPayerUserId = ?) AND   \
+            (abs(t.transactionAmt) > ? AND abs(t.transactionAmt) < ?) \
+            order by abs(DATEDIFF(t.transactionCreatedAt, ?))";
+
+            models.sequelize.query(
+                qryStr,
+                qryOption
+            ).then(transactions => {
+                resolve(transactions); 
+                
+            }).catch(err => {
+                reject(err)
+            });
+
+        
+        }   
+    );
+
+}
+
+function findExistingExpenseForAccTLink (req, res){
+
+    let accTransaction = req.body;
+
+    if (!accTransaction){
+        res.send(500, "Please provide an acc-transaction-item");
+        return; 
+    }
+
+    (async () => {  
+        try{
+
+            let userTransactions = await _getUserPayerTransactions(accTransaction).catch(error => {
+                throw new Error(error);
+            }); 
+
+            let suggestedTransaction = {}; 
+            
+            if (userTransactions){
+                if (userTransactions.length > 0){
+                    suggestedTransaction = userTransactions[0]; 
+                }
+            }
+
+            res.send(suggestedTransaction);
+
+        }catch(err){
+
+            config.handleError("postAccTransactionArray", res, err);
+
+        }
+    })();
+
+    return true;
+}
+
 
 // #### ADMIN #####
 
@@ -163,9 +241,9 @@ function postAccTransactionArray (req, res){
                     .catch(error => {
                         errorArray.push({
                             "el" : element, 
-                        "error" : error.fields}
-                        ); 
-                       // throw error;
+                            "error" : error.fields
+                        }); 
+                        config.logger.error(error); 
                     }); 
                     
                 }
@@ -193,4 +271,4 @@ function postAccTransactionArray (req, res){
 
 }
 
-module.exports = { getAccountTransactions, updateAccTransaction, postAccTransactionArray };
+module.exports = { getAccountTransactions, updateAccTransaction, postAccTransactionArray, findExistingExpenseForAccTLink };
