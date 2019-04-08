@@ -29,10 +29,7 @@ function searchUsers(req, res){
                     [Op.eq]: searchStr
                   }, 
                   localUserCreatedByUserId : {
-                    [Op.or] : {
-                        [Op.eq]: null, 
-                        [Op.eq]: requestUserId
-                    }
+                    [Op.or]: [requestUserId, null]
                   }
               },
             attributes: ['userId', 'userName', 'userAvatarPath', 'userEmail']

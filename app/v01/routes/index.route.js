@@ -1,6 +1,6 @@
 var express             = require('express'); 
 var apiAuth = require('../auth/admin-api-validate.controller')
-
+var config      = require('../../config/config');
 
 var authRoutes          = require('./auth.route.js');
 var adminRoutes = require('./admin.route.js');
@@ -18,7 +18,7 @@ var router = express.Router();
 var VerifyToken = require('../auth/token-validate.controller');
 
 router.use('/hb', function (req, res){
-    res.json({"response": "healthy"})
+    res.json({"response": "healthy", "version" : config.APIVersion})
 });
 
 router.use('/auth', authRoutes );
