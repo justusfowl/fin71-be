@@ -27,6 +27,12 @@ function searchUsers(req, res){
             where : {
                 userEmail: {
                     [Op.eq]: searchStr
+                  }, 
+                  localUserCreatedByUserId : {
+                    [Op.or] : {
+                        [Op.eq]: null, 
+                        [Op.eq]: requestUserId
+                    }
                   }
               },
             attributes: ['userId', 'userName', 'userAvatarPath', 'userEmail']

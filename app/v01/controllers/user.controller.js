@@ -2,6 +2,7 @@ const config = require('../../config/config');
 const models = require("../models");
 const uuidv1 = require('uuid/v1');
 const base64ToImage = require('base64-to-image');
+const crypto = require('crypto');
 
 function getUserProfileBase (req,res) {
 
@@ -66,6 +67,71 @@ function upsertProfileAvatar (req, res){
 
 }
 
+async function createInviteUser(inputUser){
 
-module.exports = { getUserProfileBase, upsertProfileAvatar };
+    return new Promise(
+        (resolve, reject) => {
+
+            let newId = crypto.createHash('md5').update(inputUser.userEmail).digest("hex");
+
+            models.tblusers.build({
+                userId: newId,
+                userName : inputUser.userEmail.substring(0,inputUser.userEmail.indexOf("@")),
+                userEmail: inputUser.userEmail,
+                userCreatedAt : new Date(),
+                localUserCreatedByUserId : inputUser.localUserCreatedByUserId
+            }).save()
+              .then(resultUser => {
+                   
+                resolve(resultUser)
+    
+              })
+              .catch(error => {
+                reject(error);
+              })
+
+        }
+    );
+
+}
+
+function inviteUser(req, res){
+
+    try{
+
+        let userId = req.auth.userId;
+        let userBody = req.body;
+
+        userBody["localUserCreatedByUserId"] = userId; 
+
+        if (typeof(userBody.userEmail) == "undefined"){
+            res.send(500, "No userEmail has been provided");
+            return; 
+        }
+
+        createInviteUser(userBody).then(inviteUser => {
+
+            res.json(inviteUser);
+
+        }).catch(err => {
+            if (err.original){
+                if (err.original.errno){
+                    res.send(500, {"msg" : "User Id cannot be invited"})
+                }else{
+                    config.handleError("inviteUser", res, err); 
+                }
+            }else{
+                config.handleError("inviteUser", res, err); 
+            }
+            
+        })
+
+    }catch(err){
+        config.handleError("inviteUser", res, err); 
+    }
+
+}
+
+
+module.exports = { getUserProfileBase, upsertProfileAvatar, inviteUser };
 

@@ -23,6 +23,10 @@ module.exports = (sequelize, DataTypes) => {
     userCreatedAt: {
         type: DataTypes.DATE,
         allowNull: true
+    },
+    localUserCreatedByUserId: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 }, {
     timestamps : false

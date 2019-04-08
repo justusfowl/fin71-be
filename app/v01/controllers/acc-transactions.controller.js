@@ -116,14 +116,15 @@ async function _getUserPayerTransactions(accTransaction){
             let userId = accTransaction.transactionOwnerId;
             let transactionDate = accTransaction.transactionDate; 
             let transactionAmt = accTransaction.transactionAmt;
+            let transactionTitle = accTransaction.transactionTitle; 
 
             let amtLowerBound = Math.abs(transactionAmt) * 0.98; 
             let amtUpperBound = Math.abs(transactionAmt) * 1.02; 
 
-            var qryOption = { raw: true, replacements: [transactionDate, userId, userId, userId, amtLowerBound, amtUpperBound, transactionDate], type: models.sequelize.QueryTypes.SELECT}; 
+            var qryOption = { raw: true, replacements: [transactionDate, userId, userId, userId, amtLowerBound, amtUpperBound, transactionTitle, transactionDate], type: models.sequelize.QueryTypes.SELECT}; 
             
             let qryStr = 
-            "SELECT t.*, DATEDIFF(t.transactionCreatedAt, ?) as dateDiff, p.projectTitle, ty.typeTitle \
+            "SELECT t.*, DATEDIFF(t.transactionCreatedAt, ?) as dateDiff, p.projectTitle, ty.typeTitle, ty.typeIcon \
             FROM fin71.tbltransactions as t \
             left join ( \
             SELECT * FROM tbltransactionportions where userId = ?) as tp on t.transactionId = tp.transactionId  \
@@ -131,7 +132,8 @@ async function _getUserPayerTransactions(accTransaction){
             inner join tbltypes as ty on t.typeId = ty.typeId \
             where   \
             (tp.userId = ? or t.transactionPayerUserId = ?) AND   \
-            (abs(t.transactionAmt) > ? AND abs(t.transactionAmt) < ?) \
+            (abs(t.transactionAmt) > ? AND abs(t.transactionAmt) < ?) AND \
+            (t.transactionTitle != ?) \
             order by abs(DATEDIFF(t.transactionCreatedAt, ?))";
 
             models.sequelize.query(
@@ -150,31 +152,28 @@ async function _getUserPayerTransactions(accTransaction){
 
 }
 
+
 function findExistingExpenseForAccTLink (req, res){
 
     let accTransaction = req.body;
 
     if (!accTransaction){
         res.send(500, "Please provide an acc-transaction-item");
-        return; 
+        return;
     }
 
-    (async () => {  
+    (async () => {
         try{
 
             let userTransactions = await _getUserPayerTransactions(accTransaction).catch(error => {
                 throw new Error(error);
             }); 
 
-            let suggestedTransaction = {}; 
-            
-            if (userTransactions){
-                if (userTransactions.length > 0){
-                    suggestedTransaction = userTransactions[0]; 
-                }
-            }
+            let suggestedTransactions = {
+                t : userTransactions
+            }; 
 
-            res.send(suggestedTransaction);
+            res.send(suggestedTransactions);
 
         }catch(err){
 
@@ -185,6 +184,7 @@ function findExistingExpenseForAccTLink (req, res){
 
     return true;
 }
+
 
 
 // #### ADMIN #####

@@ -19,4 +19,8 @@ router.route('/profile/avatar')
 
     .post(userCtrl.upsertProfileAvatar)
 
+router.route('/inviteUser')
+
+    .post(userCtrl.inviteUser)
+
 module.exports = router;

@@ -345,6 +345,8 @@ function getProjectTransactions(req, res){
         let projectId = req.params.projectId;
 
         let userId = req.auth.userId; 
+        let limit = req.query.limit || 10; 
+        let offset = req.query.offset || 0; 
 
         var qryOption = { raw: true, replacements: [userId], type: models.sequelize.QueryTypes.SELECT}; 
         
@@ -357,14 +359,14 @@ function getProjectTransactions(req, res){
         left join fin71.tbltypes as t on e.typeId = t.typeId \
         left join (Select linkTransactionId from fin71.tblacctransactions where transactionOwnerId = '" + userId + "') as accT on e.transactionId = accT.linkTransactionId \
         left join fin71.tblusers as creatorUser on e.transactionCreatorUserId = creatorUser.userId \
-        where c.userId = ? ";
+        where c.userId = ?";
 
         if (projectId){
             qryOption.replacements.push(projectId);
             qryStr += "and e.projectId = ?"
         }
 
-        qryStr += " order by e.transactionCreatedAt DESC"
+        qryStr += " order by e.transactionCreatedAt DESC  LIMIT " + limit + " OFFSET " + offset + ";"
 
         models.sequelize.query(
             qryStr,
@@ -386,4 +388,96 @@ function getProjectTransactions(req, res){
 
 }
 
-module.exports = { deleteTransaction, saveTransaction, getProjectTransactions, getTransactionPortions};
+
+/**
+ * Function to return transactions from any project where requesting user is either payer or creator of the transaction
+ * @param {*} options containing the options for the function call, at least options.userId and 
+ */
+async function _getUserPayerTransactionsChronologic(options){
+
+    return new Promise(
+        (resolve, reject) => {
+
+            let userId = options.userId;
+            let limit = options.limit || 10; 
+            let offset = options.offset || 0; 
+            
+            var qryOption = { raw: true, replacements: [userId, userId, userId, userId], type: models.sequelize.QueryTypes.SELECT}; 
+            
+            let qryStr = 
+            "SELECT t.*, p.projectTitle, ty.typeTitle, ty.typeIcon, acct.linkTransactionId \
+            FROM fin71.tbltransactions as t  \
+            left join (  \
+            SELECT * FROM tbltransactionportions where userId = ?) as tp on t.transactionId = tp.transactionId   \
+            inner join tblprojects as p on t.projectId = p.projectId  \
+            inner join tbltypes as ty on t.typeId = ty.typeId \
+            left join ( \
+                select linkTransactionId  \
+                from fin71.tblacctransactions \
+                where transactionOwnerId = ? \
+                ) as acct on t.transactionId = acct.linkTransactionId \
+            where    \
+            (tp.userId = ? or t.transactionPayerUserId = ?) and  \
+            linkTransactionId is null \
+            order by t.transactionCreatedAt Desc LIMIT " + limit + " OFFSET " + offset;
+
+            models.sequelize.query(
+                qryStr,
+                qryOption
+            ).then(transactions => {
+                resolve(transactions); 
+                
+            }).catch(err => {
+                reject(err)
+            });
+
+        
+        }   
+    );
+
+}
+/**
+ * Retrieving the relevant transactions for the user (either as payer or contributor)
+ * @param {*} req 
+ * @param {*} res 
+ */
+function getMyRelevantTransactions(req, res){
+
+
+    let userId = req.auth.userId;
+    let limit = req.query.limit || 10; 
+    let offset = req.query.offset || 0; 
+
+    let options = {
+        "userId" :  userId, 
+        "limit" : limit, 
+        "offset" : offset
+    };
+
+    (async () => {
+        try{
+
+            let userTransactions = await _getUserPayerTransactionsChronologic(options).catch(error => {
+                throw new Error(error);
+            }); 
+
+            let suggestedTransactions = {
+                t : userTransactions
+            }; 
+
+            res.send(suggestedTransactions);
+
+        }catch(err){
+
+            config.handleError("getChronUserTransactions", res, err);
+
+        }
+    })();
+
+    return true;
+
+}
+
+
+
+module.exports = { deleteTransaction, saveTransaction, getProjectTransactions, getTransactionPortions, getMyRelevantTransactions};

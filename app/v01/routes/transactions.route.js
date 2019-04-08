@@ -14,6 +14,12 @@ router.route('/')
 
     .get(transactionCtrl.getProjectTransactions)
 
+router.route('/myTransactions')
+
+    //.post(transactionCtrl.addTransaction)
+
+    .get(transactionCtrl.getMyRelevantTransactions)
+
 router.route('/:projectId')
 
     .get(transactionCtrl.getProjectTransactions)
@@ -25,5 +31,7 @@ router.route('/:transactionId')
 router.route('/:transactionId/portions')
 
     .get(transactionCtrl.getTransactionPortions)
+
+
 
 module.exports = router;

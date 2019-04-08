@@ -23,8 +23,7 @@ function registerUser ( req, res ){
             userId: newId,
             userName : user.nickname || user.email.substring(0,user.email.indexOf("@")),
             userEmail: user.email,
-            userAvatarPath : user.picture_large || "https://cdn1.iconfinder.com/data/icons/avatars-55/100/avatar_profile_user_music_headphones_shirt_cool-512.png",
-            userCreatedAt : new Date()
+            userAvatarPath : user.picture_large || "https://cdn1.iconfinder.com/data/icons/avatars-55/100/avatar_profile_user_music_headphones_shirt_cool-512.png"
         }).save()
           .then(resultUser => {
             // you can now access the currently saved task with the variable anotherTask... nice!
@@ -38,11 +37,15 @@ function registerUser ( req, res ){
 
           })
           .catch(error => {
-            // Ooops, do some error-handling
-            console.log(error);
     
             if (error.original.errno == 1062){
-                res.send(500, "Your user-ID has already been used");
+
+                res.json({
+                    userId : newId, 
+                    userEmail: user.email, 
+                    fin71_id : newId
+                })
+
             }else{
                 res.send(500, error.name);
             }
