@@ -101,6 +101,225 @@ function getTransactionSums(req, res){
 }
 
 function getSaldo(req, res){
+
+    (async () => {
+
+        let projectId = req.params.projectId;
+
+        
+
+        let qryStr = 
+        'SELECT \
+            sum(factorAmt) as sumTransactionAmt,  \
+            payerUserName,  \
+            payerUserId, \
+            factorUserName,  \
+            factorUserId, \
+            transactionCategory \
+        from ( \
+        SELECT  \
+            t.projectId,  \
+            pu.userName AS payerUserName, \
+            pu.userId AS payerUserId, \
+            t.transactionId, \
+            t.transactionCategory, \
+            transactionAmt * factor AS factorAmt, \
+            u.userName AS factorUserName, \
+            u.userId AS factorUserId \
+        FROM \
+            fin71.tbltransactions AS t \
+                INNER JOIN \
+            fin71.tbltransactionportions AS f ON f.transactionId = t.transactionId \
+                INNER JOIN \
+            fin71.tblusers AS u ON f.userId = u.userId \
+                INNER JOIN \
+            fin71.tblusers AS pu ON t.transactionPayerUserId = pu.userId \
+        WHERE \
+            t.projectId = ? \
+        ORDER BY t.transactionId DESC  \
+        ) as a  \
+        GROUP BY  \
+        payerUserName,  \
+        factorUserName, \
+        transactionCategory';
+                
+
+        var qryOption = { raw: true, replacements: [projectId], type: models.sequelize.QueryTypes.SELECT}; 
+
+        models.sequelize.query(
+            qryStr,
+            qryOption
+        ).then(transactions => {
+
+            let allUsers = [];
+            
+            transactions.forEach(element => {
+
+                element.sumTransactionAmt = parseFloat(element.sumTransactionAmt);
+
+                if (allUsers.findIndex(x => x.userId == element.payerUserId) == -1){
+                    allUsers.push({
+                        userId : element.payerUserId, 
+                        userName : element.payerUserName
+                    })
+                }
+
+                if (allUsers.findIndex(x => x.userId == element.factorUserId) == -1){
+                    allUsers.push({
+                        userId : element.factorUserId, 
+                        userName : element.factorUserName
+                    })
+                }
+
+            });
+            
+            let costItems = _.filter(transactions, (v) => v.transactionCategory == 1);
+            
+
+            var costItemsSumPaidBy =
+                _(costItems)
+                    .groupBy('payerUserId')
+                    .map((objs, key) => ({
+                        'payerUserId': key,
+                        'sumTransactionAmt': _.sumBy(objs, 'sumTransactionAmt') }))
+                    .value();
+
+            var costItemsSumPaidFor =
+                _(costItems)
+                    .groupBy('factorUserId')
+                    .map((objs, key) => ({
+                        'factorUserId': key,
+                        'sumTransactionAmt': _.sumBy(objs, 'sumTransactionAmt') }))
+                    .value();
+            
+            let moneyTransferItems = _.filter(transactions, (v) => v.transactionCategory == 2);
+
+            var moneyTransferItemsPaidBy =
+            _(moneyTransferItems)
+                .groupBy('payerUserId')
+                .map((objs, key) => ({
+                    'payerUserId': key,
+                    'sumTransactionAmt': _.sumBy(objs, 'sumTransactionAmt') }))
+                .value();
+
+            var moneyTransferItemsPaidTo =
+                _(moneyTransferItems)
+                    .groupBy('factorUserId')
+                    .map((objs, key) => ({
+                        'factorUserId': key,
+                        'sumTransactionAmt': _.sumBy(objs, 'sumTransactionAmt') }))
+                    .value();
+
+            function getItemInArray(arr, key,  userId){
+                if (arr.findIndex(x => x[key] == userId) != -1){
+                    return parseFloat(arr[arr.findIndex(x => x[key] == userId)]['sumTransactionAmt']);
+                }else{
+                    return 0; 
+                }
+            }
+            
+            allUsers.forEach(element => {
+
+                // total amount other users have paid for this user
+
+                let userCostPaidFor = getItemInArray(costItemsSumPaidFor, 'factorUserId', element.userId); 
+                let userCostPaidBy = getItemInArray(costItemsSumPaidBy, 'payerUserId', element.userId);
+
+                let userAmtTransferedFrom = getItemInArray(moneyTransferItemsPaidTo, 'factorUserId', element.userId);
+                let userAmtTransferedTo = getItemInArray(moneyTransferItemsPaidBy, 'payerUserId', element.userId); 
+
+
+                element.costNet =  userCostPaidFor - userCostPaidBy
+                element.transferNet = userAmtTransferedTo - userAmtTransferedFrom
+                
+                element.totalNet = element.costNet + element.transferNet
+
+            });
+
+
+            // create 'from->to value pairs' for the sankey chart 
+            // TODO: create the value-> source pairs DOES NOT WORK YET
+            
+            let values = [];
+
+            class SankeyObject {
+                constructor(options) {
+                  this.value = options.value || 0;
+                  this.source = options.source || "";
+                  this.target = options.target || "";
+                }
+
+                isComplete(){
+
+                    if (this.value != 0 && this.source != "" && this.target != ""){
+                        return true
+                    }else{
+
+                    }
+
+                }
+              }
+
+            allObjTargets = _.filter(allUsers, item => item.totalNet >= 0 );
+            allObjSources = _.filter(allUsers, item => item.totalNet < 0 );
+
+            allObjTargets.forEach(element => {
+
+                let obj = new SankeyObject({
+                    value : Math.abs(element.totalNet), 
+                    target: element.userName
+                })
+
+                values.push(obj);
+
+            });
+
+            allObjSources.forEach(element => {
+
+                let sumPayable = Math.abs(element.totalNet); 
+                
+                values.forEach(obj => {
+                    
+                    if (!obj.isComplete()){
+
+                        if (obj.value > sumPayable){
+
+
+                            let newObj = new SankeyObject({
+                                target: obj.target, 
+                                value : obj.value-sumPayable
+                            })
+
+                            obj.value = sumPayable; 
+                            obj.source = element.userName; 
+
+                            if (newObj.value > 0.01){
+                                values.push(newObj)
+                            }
+
+                        }else{
+                            obj.source = element.userName;
+                            sumPayable = sumPayable-obj.value;
+                        }
+                    }
+                });
+
+            });
+
+            
+
+            res.json({t: transactions, o: allUsers, pSaldo: values});
+
+        }).catch(err => {
+            config.handleError("getSaldo", res, err)
+        });
+
+    })();
+
+}
+
+
+function getSaldoOld(req, res){
     try{
 
         let projectId = req.params.projectId;
