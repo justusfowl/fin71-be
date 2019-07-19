@@ -27,6 +27,10 @@ module.exports = (sequelize, DataTypes) => {
     localUserCreatedByUserId: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    flagHasAccounts: {
+        type: DataTypes.TINYINT,
+        allowNull: true
     }
 }, {
     timestamps : false

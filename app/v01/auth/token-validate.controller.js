@@ -4,7 +4,7 @@ const config = require('../../config/config');
 
 var verifyToken; 
 
-
+/*
 if (config.env == 'production'){
 
   verifyToken = jwt({
@@ -30,6 +30,20 @@ if (config.env == 'production'){
   }
   
 }
+*/
+
+verifyToken = jwt({
+  secret: jwks.expressJwtSecret({
+      cache: true,
+      rateLimit: true,
+      jwksRequestsPerMinute: 5,
+      jwksUri: config.auth.jwksUri
+  }),
+  aud: config.auth.auth0_audience,
+  iss: config.auth.iss,
+  algorithms: ['RS256']
+});
+
 
 
 var errorAuth = function (err, req, res, next){
